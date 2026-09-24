@@ -1,0 +1,14 @@
+# Seed stage - Python with faker and falkordb client
+FROM python:3.11-slim AS seed
+
+WORKDIR /app
+
+# Install dependencies
+RUN pip install --no-cache-dir falkordb faker
+
+# Copy seed scripts
+COPY scripts/seed.py /app/seed.py
+COPY scripts/verify_seed.py /app/verify_seed.py
+
+# Run seed script
+CMD ["python", "seed.py"]

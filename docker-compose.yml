@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  falkordb:
+    image: falkordb/falkordb:latest
+    container_name: syndicate-falkordb
+    ports:
+      - "6379:6379"
+    volumes:
+      - falkordb-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile.seed
+    container_name: syndicate-seed
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    environment:
+      - FALKORDB_HOST=falkordb
+      - FALKORDB_PORT=6379
+      - GRAPH_NAME=syndicate
+    # Runs once, exits on completion
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: syndicate-web
+    ports:
+      - "3000:3000"
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    environment:
+      - FALKORDB_HOST=falkordb
+      - FALKORDB_PORT=6379
+      - GRAPH_NAME=syndicate
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    # Next.js dev server for hackathon demo
+
+volumes:
+  falkordb-data:

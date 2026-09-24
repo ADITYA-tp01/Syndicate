@@ -1,0 +1,2 @@
+falkordb>=1.0.0
+faker>=24.0.0
