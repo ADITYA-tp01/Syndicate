@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runQuery } from '@/lib/falkordb';
 import { RING_MEMBERS, RING_MONEY_FLOW, RING_SHARED_ENTITIES, RING_SHARED_IPS } from '@/lib/queries';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const memberIds = searchParams.get('memberIds')?.split(',').filter(Boolean) || [];

@@ -12,7 +12,7 @@
     "next": "14.2.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "falkordb": "^1.0.0",
+    "falkordb": "^6.8.0",
     "cytoscape": "^3.30.2",
     "react-cytoscapejs": "^2.0.0",
     "openai": "^4.52.0",

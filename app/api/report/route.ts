@@ -12,9 +12,21 @@ import {
 import { isolateRings, detectRingleader } from '@/lib/graph-algos';
 import OpenAI from 'openai';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+export const dynamic = 'force-dynamic';
+
+let openai: OpenAI | null = null;
+
+function getOpenAI() {
+  if (!openai) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY not configured');
+    }
+    openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+  }
+  return openai;
+}
 
 interface GraphEvidence {
   ring: {
@@ -190,7 +202,8 @@ export async function POST(request: NextRequest) {
     const prompt = buildPrompt(evidence);
 
     // Call LLM
-    const completion = await openai.chat.completions.create({
+    const client = getOpenAI();
+    const completion = await client.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: 'You are a financial crime analyst. Write structured investigation briefs with precise source attribution.' },

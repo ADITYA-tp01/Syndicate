@@ -3,6 +3,8 @@ import { runQuery } from '@/lib/falkordb';
 import { RING_ISOLATE_FALLBACK } from '@/lib/queries';
 import { isolateRings } from '@/lib/graph-algos';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const start = performance.now();

@@ -11,7 +11,7 @@ RUN npm ci
 COPY . .
 
 # Build Next.js app
-RUN npm run build
+RUN npm run build && mkdir -p /app/public
 
 # Runtime stage
 FROM node:20-alpine AS runner

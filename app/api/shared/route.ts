@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runQuery } from '@/lib/falkordb';
 import { IDENTITY_RESOLUTION_DUAL, SHARED_DEVICE_DETECTION, SHARED_IP_DETECTION } from '@/lib/queries';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const mode = searchParams.get('mode') || 'dual'; // 'dual' | 'device' | 'ip'

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { runQuery } from '@/lib/falkordb';
 import { OVERVIEW_STATS } from '@/lib/queries';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const result = await runQuery(OVERVIEW_STATS);
