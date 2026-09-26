@@ -111,7 +111,7 @@ Either way: remove FalkorDB and the product dies.
 
 **SUCCESS:** click "Trace Money" in browser → path renders from live query.
 
-- [ ] End-of-day upload: commit + push **Day 3** to GitHub (only after everything above is done)
+- [x] End-of-day upload: commit + push **Day 3** to GitHub (only after everything above is done)
 
 ---
 
