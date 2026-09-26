@@ -60,7 +60,7 @@ Either way: remove FalkorDB and the product dies.
 
 **SUCCESS:** seeded graph verified in FalkorDB Browser; screenshot for README.
 
-- [ ] End-of-day upload: commit + push **Day 1** to GitHub (only after everything above is done)
+- [x] End-of-day upload: commit + push **Day 1** to GitHub (only after everything above is done)
 ---
 
 ## Day 2 — The Engine (Cypher day)
