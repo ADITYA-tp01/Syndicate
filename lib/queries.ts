@@ -88,13 +88,19 @@ RETURN a.id AS src, b.id AS dst, 'MONEY' AS via
 // RETURN nodeId, componentId
 // `;
 
-// ─── Q5: Ringleader Detection — FALLBACK (Degree Centrality) ───
-// Rank persons within a ring by connection count (guaranteed to work)
+// ─── Q5: Ringleader Detection — FALLBACK (money-inflow centrality) ───
+// Rank persons BY THE TOTAL MONEY FLOWING INTO their accounts.
+// In a syndicate, money flows up. The node that accumulates the most
+// inflow is the one everything funnels into — the kingpin.
+// (Ranking by raw edge-degree instead would rank lieutenants above the
+// kingpin because each lieutenant has 15 mules in and 1 out, while the
+// kingpin has only 8 lieutenant-in edges — so edge-count misidentifies
+// hierarchy.)
 export const RINGLEADER_FALLBACK = `
-MATCH (p:Person)-[:OWNS]->(a:BankAccount)-[r:TRANSFERRED_TO]-()
+MATCH (p:Person)-[:OWNS]->(a:BankAccount)<-[tx:TRANSFERRED_TO]-(:BankAccount)
 WHERE p.id IN $ring_members
-RETURN p.id, p.name, count(r) AS degree
-ORDER BY degree DESC
+RETURN p.id, p.name, count(tx) AS in_count, sum(tx.amount) AS total_in
+ORDER BY total_in DESC
 LIMIT 5
 `;
 
@@ -217,8 +223,8 @@ export const QUERY_REGISTRY: Record<string, { name: string; description: string 
     description: 'Extract suspicious subgraph for clustering',
   },
   RINGLEADER_FALLBACK: {
-    name: 'Ringleader Detection (Degree)',
-    description: 'Rank ring members by connection count',
+    name: 'Ringleader Detection (Money Inflow)',
+    description: 'Rank ring members by total money flowing into their accounts',
   },
   RING_MEMBERS: {
     name: 'Ring Members Detail',

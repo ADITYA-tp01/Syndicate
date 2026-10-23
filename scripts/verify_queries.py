@@ -41,14 +41,14 @@ RETURN count(*) as paths, max(length(path)) as max_hops
 ''')
 print('Q2 Money trail from ACC_ALPHA_001:', res)
 
-# Q4 - Ringleader degree
+# Q4 - Ringleader detection: total money inflow (kingpin should rank #1)
 res = run('''
-MATCH (p:Person)-[:OWNS]->(a:BankAccount)-[r:TRANSFERRED_TO]-()
+MATCH (p:Person)-[:OWNS]->(a:BankAccount)<-[tx:TRANSFERRED_TO]-(:BankAccount)
 WHERE p.id IN ["gamma_kingpin_001", "gamma_lt_00", "gamma_lt_01", "gamma_lt_02", "gamma_lt_03", "gamma_lt_04", "gamma_lt_05", "gamma_lt_06", "gamma_lt_07"]
-RETURN p.id, p.name, count(r) AS degree
-ORDER BY degree DESC
+RETURN p.id, p.name, count(tx) AS in_count, sum(tx.amount) AS total_in
+ORDER BY total_in DESC
 ''')
-print('Q4 Ringleader degrees:', res)
+print('Q4 Ringleader by money inflow:', res)
 
 # Native WCC - check components
 res = run('CALL algo.WCC()')
@@ -65,15 +65,15 @@ if res:
 res = run('''
 MATCH (a:Person)-[:USES_DEVICE]->(d:Device)<-[:USES_DEVICE]-(b:Person)
 WHERE a.id < b.id
-RETURN count(*) as device_links
+RETURN count(*) AS cnt, 'DEVICE' AS via
 UNION
 MATCH (a:Person)-[:LOGGED_FROM]->(ip:IP)<-[:LOGGED_FROM]-(b:Person)
 WHERE a.id < b.id
-RETURN count(*) as ip_links
+RETURN count(*) AS cnt, 'IP' AS via
 UNION
 MATCH (a:Person)-[:OWNS]->(srcAcc:BankAccount)-[:TRANSFERRED_TO]->(dstAcc:BankAccount)<-[:OWNS]-(b:Person)
 WHERE a.id < b.id
-RETURN count(*) as money_links
+RETURN count(*) AS cnt, 'MONEY' AS via
 ''')
 print('Q5 Ring isolation links:', res)
 

@@ -84,7 +84,7 @@ async function collectGraphEvidence(ringId: string): Promise<GraphEvidence> {
   const membersResult = await runQuery(RING_MEMBERS, { ring_member_ids: ring.memberIds });
 
   // Get ring money flow
-  const accounts = (membersResult.result || []).flatMap((m: any) => m[4] || m.accounts || []);
+  const accounts = (membersResult.result || []).flatMap((m: any) => m[5] || m.accounts || []);
   const moneyFlowResult = await runQuery(RING_MONEY_FLOW, { ring_accounts: accounts });
 
   // Get shared entities

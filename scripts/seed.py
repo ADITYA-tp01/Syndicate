@@ -44,7 +44,8 @@ db = FalkorDB(host=FALKORDB_HOST, port=FALKORDB_PORT)
 
 # Delete graph if exists, then create fresh
 try:
-    db.delete_graph(GRAPH_NAME)
+    existing = db.select_graph(GRAPH_NAME)
+    existing.delete()
     print(f"Deleted existing graph '{GRAPH_NAME}'")
 except Exception:
     pass

@@ -349,17 +349,17 @@ export async function detectRingleader(
   runQuery: (cypher: string, params?: any) => Promise<any>,
   ringMemberIds: string[]
 ): Promise<{ leaderId: string; leaderName: string; score: number; method: string }> {
-  // Try degree centrality first (guaranteed to work)
+  // Rank by total money inflow — the node money funnels into is the kingpin
   const { RINGLEADER_FALLBACK } = await import('./queries');
-  const degreeResult = await runQuery(RINGLEADER_FALLBACK, { ring_members: ringMemberIds });
+  const inflowResult = await runQuery(RINGLEADER_FALLBACK, { ring_members: ringMemberIds });
 
-  if (degreeResult.result && degreeResult.result.length > 0) {
-    const top = degreeResult.result[0];
+  if (inflowResult.result && inflowResult.result.length > 0) {
+    const top = inflowResult.result[0];
     return {
       leaderId: top[0] || top.id,
       leaderName: top[1] || top.name,
-      score: top[2] || top.degree,
-      method: 'degree_centrality',
+      score: Number(top[3] ?? top.total_in ?? top[2] ?? 0),
+      method: 'money_inflow_centrality',
     };
   }
 

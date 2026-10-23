@@ -88,7 +88,7 @@ export default function CasePage() {
   const loadRingDetails = async (ring: Ring) => {
     try {
       // Load leader
-      const leaderRes = await fetch(`/api/rings/leader/${ring.id}`);
+      const leaderRes = await fetch(`/api/rings/${ring.id}/leader`);
       const leaderData = await leaderRes.json();
       addQueryToHistory(leaderData);
       setLeader(leaderData.leader);
@@ -100,7 +100,7 @@ export default function CasePage() {
       setMembers(membersData.result || []);
 
       // Load money flow
-      const accounts = (membersData.result || []).flatMap((m: any) => m[4] || m.accounts || []);
+      const accounts = (membersData.result || []).flatMap((m: any) => m[5] || m.accounts || []);
       const moneyRes = await fetch(`/api/ring-money-flow?accounts=${accounts.join(',')}`);
       const moneyData = await moneyRes.json();
       addQueryToHistory(moneyData);
@@ -360,7 +360,7 @@ export default function CasePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {members.map((row, i) => (
+                      {members.map((row: any, i) => (
                         <tr key={i} className="border-b border-gray-800/50 hover:bg-gray-800/50">
                           <td className="px-3 py-2 font-mono text-xs">{row[0] || row.id}</td>
                           <td className="px-3 py-2 font-medium">{row[1] || row.name}</td>

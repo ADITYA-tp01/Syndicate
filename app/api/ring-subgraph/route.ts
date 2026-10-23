@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const membersResult = await runQuery(RING_MEMBERS, { ring_member_ids: memberIds });
     
     // Get money flow
-    const accounts = (membersResult.result || []).flatMap((m: any) => m[4] || m.accounts || []);
+    const accounts = (membersResult.result || []).flatMap((m: any) => m[5] || m.accounts || []);
     const moneyResult = await runQuery(RING_MONEY_FLOW, { ring_accounts: accounts });
 
     // Get shared devices
@@ -38,12 +38,12 @@ export async function GET(request: NextRequest) {
       gamma_: 'ring-gamma',
     };
 
-    function getRingClass(prefix: string) {
+    const getRingClass = (prefix: string) => {
       for (const [key, cls] of Object.entries(ringColors)) {
         if (prefix.startsWith(key)) return cls;
       }
       return '';
-    }
+    };
 
     // Add members
     for (const row of membersResult.result || []) {

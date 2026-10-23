@@ -185,7 +185,7 @@ export default function InvestigatePage() {
     if (!selectedRing) return;
     setLoading('leader');
     try {
-      const res = await fetch(`/api/rings/leader/${selectedRing.id}`);
+      const res = await fetch(`/api/rings/${selectedRing.id}/leader`);
       const data = await res.json();
       addQueryToHistory(data);
       setLeader(data);

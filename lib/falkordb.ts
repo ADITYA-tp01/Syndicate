@@ -13,7 +13,7 @@ async function getFalkorDB() {
   if (!client) {
     // Dynamic import to avoid bundling falkordb during build
     const { FalkorDB } = await import('falkordb');
-    client = new FalkorDB({ host: FALKORDB_HOST, port: FALKORDB_PORT });
+    client = await FalkorDB.connect({ socket: { host: FALKORDB_HOST, port: FALKORDB_PORT } });
   }
   return client;
 }
@@ -42,7 +42,7 @@ export async function runQuery(cypher: string, params: Record<string, any> = {})
   try {
     const g = await getGraph();
     const start = performance.now();
-    const result = await g.query(cypher, params);
+    const result = await g.query(cypher, { params });
     const ms = performance.now() - start;
     return {
       result: result.result_set || [],

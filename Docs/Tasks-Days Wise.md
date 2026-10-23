@@ -40,6 +40,7 @@ Either way: remove FalkorDB and the product dies.
 
 **SUCCESS:** every 🔴 is now ✅ or its fallback is chosen.
 
+- [x] Scan Whole project check if every task is done properly without bugs and failures 
 - [ ] End-of-day upload: commit + push **Day 0** to GitHub (only after everything above is done)
 
 ---
@@ -60,6 +61,7 @@ Either way: remove FalkorDB and the product dies.
 
 **SUCCESS:** seeded graph verified in FalkorDB Browser; screenshot for README.
 
+- [x]  Scan Whole project check if every task is done properly without bugs and failures 
 - [x] End-of-day upload: commit + push **Day 1** to GitHub (only after everything above is done)
 ---
 
@@ -72,14 +74,15 @@ Either way: remove FalkorDB and the product dies.
   - [x] **Q2** Money trail (`[:TRANSFERRED_TO*1..5]`) — `lib/queries.ts:46-51`
   - [x] **Q2b** Money trail shortest path to target — `lib/queries.ts:54-57`
   - [x] **Q3** Ego-network expansion — `lib/queries.ts:61-65`
-  - [x] **Q4** Ringleader fallback (degree) — `lib/queries.ts:93-99` / native PageRank if available
+  - [x] **Q4** Ringleader fallback (money-inflow centrality) — `lib/queries.ts:93-99` / native PageRank if available
   - [x] **Q5** Ring isolation fallback (subgraph + union-find) — `lib/queries.ts:70-82` / native WCC if available
-- [x] Algorithm branch finalized (native vs. fallback) based on Day 0 findings → **fallback chosen** (no native algos verified)
+- [x] Algorithm branch finalized (native vs. fallback) based on Day 0 findings → **native algos exist but return nothing useful** (WCC returns 8774 = one component per node, PageRank ranks noise persons #1). Fallback (Cypher + union-find / money-inflow) is the working branch.
 - [x] Query timing harness — every query returns `{result, cypher, ms}` — implemented in `lib/falkordb.ts:runQuery()`
 - [x] Test all queries via CLI against seeded database
 
 **SUCCESS:** every MUST-HAVE query returns correct results from CLI.
 
+- [x] Scan Whole project check if every task is done properly without bugs and failures 
 - [ ] End-of-day upload: commit + push **Day 2** to GitHub (only after everything above is done)
 
 ---
@@ -111,6 +114,7 @@ Either way: remove FalkorDB and the product dies.
 
 **SUCCESS:** click "Trace Money" in browser → path renders from live query.
 
+- [x]  Scan Whole project check if every task is done properly without bugs and failures 
 - [x] End-of-day upload: commit + push **Day 3** to GitHub (only after everything above is done)
 
 ---
@@ -125,6 +129,7 @@ Either way: remove FalkorDB and the product dies.
 
 **SUCCESS:** full investigation flow works end-to-end, unstyled.
 
+- [ ]  Scan Whole project check if every task is done properly without bugs and failures 
 - [ ] End-of-day upload: commit + push **Day 4** to GitHub (only after everything above is done)
 
 ---
@@ -141,6 +146,7 @@ Either way: remove FalkorDB and the product dies.
 
 **SUCCESS:** full GraphRAG flow works: investigate → generate brief → brief cites Cypher queries.
 
+- [ ] Scan Whole project check if every task is done properly without bugs and failures 
 - [ ] End-of-day upload: commit + push **Day 5** to GitHub (only after everything above is done)
 
 ---
@@ -162,6 +168,7 @@ Either way: remove FalkorDB and the product dies.
 
 **SUCCESS:** demo lands clean 3× in a row.
 
+- [ ] Scan Whole project check if every task is done properly without bugs and failures 
 - [ ] End-of-day upload: commit + push **Day 6** to GitHub (only after everything above is done)
 
 ---
@@ -176,6 +183,7 @@ Either way: remove FalkorDB and the product dies.
 
 **SUCCESS:** submitted before deadline.
 
+- [ ] Scan Whole project check if every task is done properly without bugs and failures 
 - [ ] End-of-day upload: commit + push **Day 7** to GitHub (only after everything above is done)
 
 ---

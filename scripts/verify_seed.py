@@ -66,27 +66,28 @@ def assert_ring_beta():
     return True
 
 def assert_ring_gamma():
-    # Kingpin has degree >= 8 (connected to 8 lieutenants)
+    # Kingpin = the node money funnels into: 8 incoming transfers on his account
     res = q("""
-        MATCH (p:Person {id: 'gamma_kingpin_001'})-[r]-()
-        RETURN count(r) AS degree
+        MATCH (:BankAccount)-[tx:TRANSFERRED_TO]->(:BankAccount {number: 'ACC_GAMMA_KINGPIN_001'})
+        RETURN count(tx) AS inflow
     """)
-    degree = res.result_set[0][0] if res.result_set else 0
-    if degree < 8:
-        print(f"FAIL: Kingpin degree = {degree} (expected >= 8)")
+    inflow = res.result_set[0][0] if res.result_set else 0
+    if inflow < 8:
+        print(f"FAIL: Kingpin account inflow edges = {inflow} (expected >= 8)")
         return False
-    print(f"OK: Kingpin degree = {degree}")
+    print(f"OK: Kingpin account inflow edges = {inflow}")
 
-    # 8 lieutenants exist with degree >= 15 (15 mules each)
+    # 8 lieutenants, each with 15 incoming transfers from mules
     res = q("""
-        MATCH (p:Person)-[r]-() WHERE p.id STARTS WITH 'gamma_lt_'
-        RETURN p.id, count(r) AS degree ORDER BY degree
+        MATCH (p:Person)-[:OWNS]->(a:BankAccount)<-[tx:TRANSFERRED_TO]-(:BankAccount)
+        WHERE p.id STARTS WITH 'gamma_lt_'
+        RETURN p.id, count(tx) AS inflow ORDER BY inflow
     """)
-    lt_degrees = [row[1] for row in res.result_set]
-    if len(lt_degrees) != 8 or any(d < 15 for d in lt_degrees):
-        print(f"FAIL: Lieutenants = {len(lt_degrees)}, degrees = {lt_degrees}")
+    lt_inflows = [row[1] for row in res.result_set]
+    if len(lt_inflows) != 8 or any(d < 15 for d in lt_inflows):
+        print(f"FAIL: Lieutenants = {len(lt_inflows)}, inflows = {lt_inflows}")
         return False
-    print(f"OK: {len(lt_degrees)} lieutenants, min degree = {min(lt_degrees)}")
+    print(f"OK: {len(lt_inflows)} lieutenants, min money-inflow = {min(lt_inflows)}")
     return True
 
 def assert_money_trails():
