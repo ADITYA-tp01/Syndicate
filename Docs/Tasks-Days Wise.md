@@ -225,19 +225,21 @@ Errors hit and fixed during live testing:
 - [x] Animations (ringleader pulse, smooth transitions)
 - [x] Stats bar (live query latency, entity counts)
 - [x] SQL-vs-Graph comparison card (already in `page.tsx`)
+- [x] README:
+  - [x] setup instructions (docker-compose + manual + Ollama)
+  - [x] data model diagram
+  - [x] Cypher section (hero queries verbatim + source file pointers)
+  - [x] GraphRAG pipeline explanation (4 steps)
+  - [x] Track name: "Investigation and Risk"
+  - [x] AI disclosure (LLM provider options + deterministic algorithm note)
 - [ ] Record demo 5+ times; fix what breaks
-- [ ] README:
-  - [ ] setup instructions (docker-compose + manual)
-  - [ ] data model diagram
-  - [ ] Cypher section (hero queries verbatim)
-  - [ ] GraphRAG pipeline explanation
-  - [ ] Track name: "Investigation and Risk"
-  - [ ] AI disclosure
 
 **SUCCESS:** demo lands clean 3× in a row.
 
 - [ ] Scan Whole project check if every task is done properly without bugs and failures 
 - [ ] End-of-day upload: commit + push **Day 6** to GitHub (only after everything above is done)
+
+> **Docker fresh-clone test in progress** — running `docker compose up --build` from a clean state to verify the judge path works without any manual seeding. Build started at ~19:20 UTC. Will confirm once the web service is healthy.
 
 ---
 

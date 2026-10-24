@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@next/swc-win32-x64-msvc": "^14.2.5",
     "clsx": "^2.1.1",
     "cytoscape": "^3.30.2",
     "falkordb": "^6.8.0",
@@ -20,6 +19,9 @@
     "react-cytoscapejs": "^2.0.0",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.4.0"
+  },
+  "optionalDependencies": {
+    "@next/swc-win32-x64-msvc": "^14.2.5"
   },
   "devDependencies": {
     "@types/cytoscape": "^3.21.7",

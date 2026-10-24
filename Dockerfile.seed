@@ -3,6 +3,9 @@ FROM python:3.11-slim AS seed
 
 WORKDIR /app
 
+# Seed script prints unicode status glyphs; make encoding explicit
+ENV PYTHONIOENCODING=utf-8
+
 # Install dependencies
 RUN pip install --no-cache-dir falkordb faker
 
