@@ -50,7 +50,7 @@ Either way: remove FalkorDB and the product dies.
 **SUCCESS:** every 🔴 is now ✅ or its fallback is chosen.
 
 - [x] Scan Whole project check if every task is done properly without bugs and failures 
-- [ ] End-of-day upload: commit + push **Day 0** to GitHub (only after everything above is done)
+- [x] End-of-day upload: commit + push **Day 0** to GitHub (only after everything above is done) → pushed `03f2283`
 
 ---
 
@@ -191,7 +191,7 @@ Errors hit and fixed during live testing:
 
 **SUCCESS:** full GraphRAG flow works: investigate → generate brief → brief cites Cypher queries.
 
-> **No API key required (2026-10-24).** `/api/report` now tries **Ollama first** (`http://localhost:11434`, model `qwen2.5-coder:7b`) and falls back to OpenAI only if `OPENAI_API_KEY` is set. Ollama is already installed on this machine with `qwen3.8:latest` (27B), `qwen2.5-coder:7b`, and `nemotron-3-ultra:cloud`. Start it with:!L
+> **No API key required (2026-10-24).** `/api/report` now tries **Ollama first** (`http://localhost:11434`, model `qwen2.5-coder:7b`) and falls back to OpenAI only if `OPENAI_API_KEY` is set. Ollama is already installed on this machine with `qwen3.8:latest` (27B), `qwen2.5-coder:7b`, and `nemotron-3-ultra:cloud`. Start it with:
 > ```bash
 > ollama serve   # already running in this session
 > ```
@@ -215,14 +215,16 @@ Errors hit and fixed during live testing:
 Errors hit and fixed during live testing:
 `OPENAI_API_KEY` was unset, so `/api/report` returned 503 before doing any work. The guard now runs only after both providers are exhausted — Ollama is tried first, and the no-provider error is thrown by `generateBrief()` itself.
 
+- [x]  Scan Whole project check if every task is done properly without bugs and failures 
+- [x] End-of-day upload: commit + push **Day 5** to GitHub → pushed `580fd91`
 ---
 
 ## Day 6 — Polish + Demo Prep
 
-- [ ] Dark theme (already in `page.tsx` and `globals.css`)
-- [ ] Animations (ringleader pulse, smooth transitions)
-- [ ] Stats bar (live query latency, entity counts)
-- [ ] SQL-vs-Graph comparison card (already in `page.tsx`)
+- [x] Dark theme (already in `page.tsx` and `globals.css`)
+- [x] Animations (ringleader pulse, smooth transitions)
+- [x] Stats bar (live query latency, entity counts)
+- [x] SQL-vs-Graph comparison card (already in `page.tsx`)
 - [ ] Record demo 5+ times; fix what breaks
 - [ ] README:
   - [ ] setup instructions (docker-compose + manual)
@@ -302,7 +304,7 @@ Errors hit and fixed during live testing:
 | Day 3 | ✅ Complete, SWC binary fixed | Browser E2E of the trace flow not yet run |
 | Day 4 | ✅ Complete, verified live | Browser E2E not yet run (dev server at `http://localhost:3001`) |
 | Day 5 | ✅ Complete, verified live | Local inference ~100–120 s per brief; OPENAI_API_KEY not required (Ollama handles it) |
-| Day 6 | ⏳ Ready to start | — |
+| Day 6 | ⏳ In progress — polish + demo prep | README still needs: setup instructions, GraphRAG explanation, AI disclosure |
 | Day 7 | ⏳ Pending | — |
 
 **Next Action: DAY 6 — Polish + Demo Prep.**
@@ -313,8 +315,8 @@ Day 5 is done and committed (`04202cd`). The GraphRAG pipeline works end-to-end:
 - Case pages `/case/ring_gamma`, `/case/ring_alpha`, `/case/ring_beta` all render cleanly
 
 Day 6 work:
-1. **Confirm dark theme + animations are polished** (ringleader pulse is cytoscape-native, but smooth transitions need a look)
-2. **Stats bar on Overview** — live query latency should show (already renders `ms` in SQL-vs-Graph card)
-3. **Record demo 5+ times** — pre-generate the brief for Ring Gamma (Victor Krane) before recording to avoid the 2-minute wait on camera
-4. **README**: ensure setup instructions cover the Ollama dependency, the data model diagram is current, Cypher hero queries are verbatim, GraphRAG pipeline explanation matches what we actually built, track name is "Investigation and Risk", and AI disclosure is added
-5. **Docker fresh-clone test** (pushed to GitHub after Day 6 commit, tested Day 7)
+1. ✅ **Confirm dark theme + animations are polished** (ringleader pulse is cytoscape-native)
+2. ✅ **Stats bar on Overview** — live query latency shows in SQL-vs-Graph card
+3. ⬜ **Record demo 5+ times** — pre-generate the brief for Ring Gamma (Victor Krane) before recording to avoid the 2-minute wait on camera
+4. ⬜ **README**: ensure setup instructions cover the Ollama dependency, the data model diagram is current, Cypher hero queries are verbatim, GraphRAG pipeline explanation matches what we actually built, track name is "Investigation and Risk", and AI disclosure is added
+5. ⬜ **Docker fresh-clone test** (pushed to GitHub after Day 6 commit, tested Day 7)
