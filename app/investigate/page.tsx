@@ -99,43 +99,9 @@ export default function InvestigatePage() {
       const res = await fetch(`/api/trace?account=${encodeURIComponent(account)}`);
       const data = await res.json();
       addQueryToHistory(data);
-      
-      // Convert path result to Cytoscape format
-      const nodes: any[] = [];
-      const edges: any[] = [];
-      const nodeSet = new Set<string>();
-      
-      for (const row of data.result || []) {
-        const path = row[0];
-        if (path && path.length) {
-          for (const segment of path) {
-            if (segment.start && segment.end) {
-              const srcId = String(segment.start.identity || segment.start);
-              const tgtId = String(segment.end.identity || segment.end);
-              
-              if (!nodeSet.has(srcId)) {
-                nodeSet.add(srcId);
-                nodes.push({
-                  data: { id: srcId, label: segment.start.properties?.number || srcId, type: 'BankAccount' },
-                  classes: 'account',
-                });
-              }
-              if (!nodeSet.has(tgtId)) {
-                nodeSet.add(tgtId);
-                nodes.push({
-                  data: { id: tgtId, label: segment.end.properties?.number || tgtId, type: 'BankAccount' },
-                  classes: 'account',
-                });
-              }
-              edges.push({
-                data: { id: `e-${srcId}-${tgtId}`, source: srcId, target: tgtId, amount: segment.properties?.amount },
-                classes: 'transfer',
-              });
-            }
-          }
-        }
-      }
-      setGraphData({ nodes, edges });
+
+      // /api/trace now returns pre-built Cytoscape elements ({nodes, edges})
+      setGraphData({ nodes: data.nodes || [], edges: data.edges || [] });
       setSelectedEntity({ id: account, name: account, type: 'BankAccount' });
     } catch (e) {
       console.error(e);
@@ -150,7 +116,7 @@ export default function InvestigatePage() {
       const res = await fetch('/api/rings/isolate');
       const data = await res.json();
       addQueryToHistory(data);
-      
+
       if (data.rings) {
         setRings(data.rings);
         // Render first ring by default
@@ -158,6 +124,94 @@ export default function InvestigatePage() {
           await renderRing(data.rings[0]);
         }
       }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  // Shared-entity finder: runs Q1/Q1b/Q1c and renders the matching subgraph
+  // on the canvas (dual = device+IP bridge, device = device fan, ip = IP fan).
+  const handleRenderSharedEntities = async (mode: 'dual' | 'device' | 'ip') => {
+    setLoading('shared');
+    try {
+      const res = await fetch(`/api/shared?mode=${mode}`);
+      const data = await res.json();
+      addQueryToHistory(data);
+      setIdentityMatches((data.result || []).slice(0, 10));
+
+      // Cap what we draw so the canvas stays readable
+      const rows = (data.result || []).slice(0, 30);
+
+      // Build graph from shared entity results
+      const nodes: any[] = [];
+      const edges: any[] = [];
+      const nodeSet = new Set<string>();
+
+      for (const row of rows) {
+        if (mode === 'dual') {
+          // [person_a_id, person_a_name, person_b_id, person_b_name, device, ip]
+          const [aId, aName, bId, bName, device, ip] = row;
+
+          if (!nodeSet.has(aId)) {
+            nodeSet.add(aId);
+            nodes.push({ data: { id: aId, label: aName, type: 'Person' }, classes: 'person' });
+          }
+          if (!nodeSet.has(bId)) {
+            nodeSet.add(bId);
+            nodes.push({ data: { id: bId, label: bName, type: 'Person' }, classes: 'person' });
+          }
+          if (!nodeSet.has(device)) {
+            nodeSet.add(device);
+            nodes.push({ data: { id: device, label: device, type: 'Device' }, classes: 'device' });
+          }
+          if (!nodeSet.has(ip)) {
+            nodeSet.add(ip);
+            nodes.push({ data: { id: ip, label: ip, type: 'IP' }, classes: 'ip' });
+          }
+
+          edges.push({ data: { id: `e-${aId}-${device}`, source: aId, target: device, type: 'USES_DEVICE' }, classes: 'device' });
+          edges.push({ data: { id: `e-${bId}-${device}`, source: bId, target: device, type: 'USES_DEVICE' }, classes: 'device' });
+          edges.push({ data: { id: `e-${aId}-${ip}`, source: aId, target: ip, type: 'LOGGED_FROM' }, classes: 'ip' });
+          edges.push({ data: { id: `e-${bId}-${ip}`, source: bId, target: ip, type: 'LOGGED_FROM' }, classes: 'ip' });
+        } else if (mode === 'device') {
+          // [device, person_ids[], person_names[]]
+          const [device, ids, names] = row;
+          if (!nodeSet.has(device)) {
+            nodeSet.add(device);
+            nodes.push({ data: { id: device, label: device, type: 'Device' }, classes: 'device' });
+          }
+          for (let i = 0; i < (ids || []).length; i++) {
+            const id = ids[i];
+            const name = (names || [])[i] || id;
+            if (!nodeSet.has(id)) {
+              nodeSet.add(id);
+              nodes.push({ data: { id, label: name, type: 'Person' }, classes: 'person' });
+            }
+            edges.push({ data: { id: `e-${id}-${device}`, source: id, target: device, type: 'USES_DEVICE' }, classes: 'device' });
+          }
+        } else if (mode === 'ip') {
+          // [ip, person_ids[], person_names[]]
+          const [ip, ids, names] = row;
+          if (!nodeSet.has(ip)) {
+            nodeSet.add(ip);
+            nodes.push({ data: { id: ip, label: ip, type: 'IP' }, classes: 'ip' });
+          }
+          for (let i = 0; i < (ids || []).length; i++) {
+            const id = ids[i];
+            const name = (names || [])[i] || id;
+            if (!nodeSet.has(id)) {
+              nodeSet.add(id);
+              nodes.push({ data: { id, label: name, type: 'Person' }, classes: 'person' });
+            }
+            edges.push({ data: { id: `e-${id}-${ip}`, source: id, target: ip, type: 'LOGGED_FROM' }, classes: 'ip' });
+          }
+        }
+      }
+
+      setGraphData({ nodes, edges });
+      setSelectedEntity({ id: mode, name: `Shared ${mode}`, type: mode.toUpperCase() });
     } catch (e) {
       console.error(e);
     } finally {
@@ -288,6 +342,7 @@ export default function InvestigatePage() {
         <div className="flex-1 relative min-w-0">
           <GraphCanvas
             elements={{ nodes: graphData.nodes, edges: graphData.edges }}
+            highlightIds={leader ? [leader.leader.leaderId] : []}
             onNodeClick={(node) => {
               if (node.data().type === 'BankAccount') {
                 handleTraceMoney(node.id());
@@ -442,13 +497,13 @@ export default function InvestigatePage() {
                   <button onClick={handleIsolateRings} disabled={loading === 'isolate'} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm hover:bg-gray-700 disabled:opacity-50">
                     <GitBranch className="w-4 h-4 inline mr-1" /> Isolate Rings
                   </button>
-                  <button onClick={() => handleIdentityResolution('dual')} disabled={loading === 'identity'} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm hover:bg-gray-700 disabled:opacity-50">
+                  <button onClick={() => handleRenderSharedEntities('dual')} disabled={loading === 'shared'} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm hover:bg-gray-700 disabled:opacity-50">
                     <AlertTriangle className="w-4 h-4 inline mr-1" /> Dual-Entity Match
                   </button>
-                  <button onClick={() => handleIdentityResolution('device')} disabled={loading === 'identity'} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm hover:bg-gray-700 disabled:opacity-50">
+                  <button onClick={() => handleRenderSharedEntities('device')} disabled={loading === 'shared'} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm hover:bg-gray-700 disabled:opacity-50">
                     <Search className="w-4 h-4 inline mr-1" /> Shared Devices
                   </button>
-                  <button onClick={() => handleIdentityResolution('ip')} disabled={loading === 'identity'} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm hover:bg-gray-700 disabled:opacity-50">
+                  <button onClick={() => handleRenderSharedEntities('ip')} disabled={loading === 'shared'} className="px-3 py-2 bg-gray-800 border border-gray-700 rounded text-sm hover:bg-gray-700 disabled:opacity-50">
                     <Zap className="w-4 h-4 inline mr-1" /> Shared IPs
                   </button>
                 </div>

@@ -6,9 +6,13 @@ import cytoscape, { Core, ElementDefinition } from 'cytoscape';
 interface GraphCanvasProps {
   elements: { nodes: any[]; edges: any[] };
   onNodeClick?: (node: any) => void;
+  /** Node ids to mark as ringleader (pulsing highlight) */
+  highlightIds?: string[];
 }
 
-export default function GraphCanvas({ elements, onNodeClick }: GraphCanvasProps) {
+export default function GraphCanvas({ elements, onNodeClick, highlightIds }: GraphCanvasProps) {
+  const highlightRef = useRef<string[]>([]);
+  highlightRef.current = highlightIds || [];
   const containerRef = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
   const onClickRef = useRef(onNodeClick);
@@ -49,6 +53,19 @@ export default function GraphCanvas({ elements, onNodeClick }: GraphCanvasProps)
     if (next.length > 0) {
       cy.add(next);
       cy.layout({ name: 'cose', animate: false, padding: 40 }).run();
+
+      // Ringleader pulse: bounce the kingpin node(s) so they stand out
+      const targets = highlightRef.current
+        .map(id => cy.getElementById(id))
+        .filter(n => n && n.length > 0) as any[];
+
+      for (const node of targets) {
+        node.animate({
+          style: { 'background-color': '#fca5a5', 'border-color': '#fff', 'border-width': 4 },
+          duration: 600,
+          loop: true,
+        });
+      }
     }
   }, [elements]);
 
@@ -86,6 +103,10 @@ const stylesheet = [
   { selector: 'node.person', style: { 'background-color': '#f59e0b', shape: 'ellipse' } },
   { selector: 'node.device', style: { 'background-color': '#8b5cf6', shape: 'diamond' } },
   { selector: 'node.ip', style: { 'background-color': '#ef4444', shape: 'hexagon' } },
+  // Ring cluster colours: Alpha=amber, Beta=red, Gamma=purple
+  { selector: 'node.ring-alpha', style: { 'background-color': '#f59e0b', 'border-color': '#fbbf24', 'border-width': 3 } },
+  { selector: 'node.ring-beta',  style: { 'background-color': '#ef4444', 'border-color': '#f87171', 'border-width': 3 } },
+  { selector: 'node.ring-gamma', style: { 'background-color': '#a855f7', 'border-color': '#c084fc', 'border-width': 3 } },
   {
     selector: 'node.ringleader',
     style: {

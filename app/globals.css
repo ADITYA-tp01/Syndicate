@@ -64,3 +64,8 @@
     font-family: var(--font-mono), monospace;
   }
 }
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}

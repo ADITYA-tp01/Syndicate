@@ -324,8 +324,8 @@ export async function isolateRings(
     ]);
 
     rings.push({
-      id: `ring_${rings.length}`,
-      name: `Ring ${String.fromCharCode(65 + rings.length)}`,
+      id: '',
+      name: '',
       memberIds,
       memberNames,
       size: memberIds.length,
@@ -335,11 +335,31 @@ export async function isolateRings(
     });
   }
 
+  // Label each ring from its member-id prefixes — if most members share a
+  // prefix like "alpha_" / "beta_" / "gamma_", that's the engineered ring
+  // name. Otherwise (mixed/pure-noise clusters) fall back to a Ring N label.
+  const knownPatterns = ['alpha', 'beta', 'gamma'];
+  for (const ring of rings) {
+    const counts: Record<string, number> = {};
+    for (const id of ring.memberIds) {
+      const m = id.match(/^([a-z]+)_/);
+      if (m) {
+        counts[m[1]] = (counts[m[1]] || 0) + 1;
+      }
+    }
+    const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    if (dominant && knownPatterns.includes(dominant[0]) && dominant[1] >= ring.memberIds.length * 0.7) {
+      const tag = dominant[0].toUpperCase();
+      ring.id = `ring_${dominant[0]}`;
+      ring.name = `${tag}`;
+    } else {
+      ring.id = `ring_misc_${rings.indexOf(ring)}`;
+      ring.name = `Cluster ${rings.indexOf(ring) + 1}`;
+    }
+  }
+
+  // Largest first (engineering rings always dominate noise clusters)
   rings.sort((a, b) => b.size - a.size);
-  rings.forEach((ring, i) => {
-    ring.id = `ring_${i}`;
-    ring.name = `Ring ${String.fromCharCode(65 + i)}`;
-  });
 
   return rings;
 }
@@ -361,6 +381,59 @@ export async function detectRingleader(
       score: Number(top[3] ?? top.total_in ?? top[2] ?? 0),
       method: 'money_inflow_centrality',
     };
+  }
+
+  // No ring PERSON receives money (e.g. RING BETA fans out to a standalone
+  // collector account). Find the money hub instead: the account that receives
+  // the most money from ring-member accounts.
+  const memberAccountsResult = await runQuery(
+    `MATCH (p:Person)-[:OWNS]->(a:BankAccount) WHERE p.id IN $memberIds RETURN collect(a.number) AS accounts`,
+    { memberIds: ringMemberIds }
+  );
+  const memberAccounts: string[] = memberAccountsResult.result?.[0]?.[0] || [];
+
+  if (memberAccounts.length > 0) {
+    const hubResult = await runQuery(
+      `MATCH (src:BankAccount)-[tx:TRANSFERRED_TO]->(dst:BankAccount)
+       WHERE src.number IN $accounts AND NOT dst.number IN $accounts
+       RETURN dst.number AS account, sum(tx.amount) AS total_in
+       ORDER BY total_in DESC LIMIT 1`,
+      { accounts: memberAccounts }
+    );
+
+    const hub = hubResult.result?.[0];
+    if (hub) {
+      const account = hub[0] || hub.account;
+      const score = Number(hub[1] ?? hub.total_in ?? 0);
+
+      // The hub may still be an owned account (money_inflow already covers
+      // that case above, so realistically it's unowned) — surface it by
+      // number and attribute it to the ring's top sender.
+      const topSenderResult = await runQuery(
+        `MATCH (p:Person)-[:OWNS]->(src:BankAccount)-[tx:TRANSFERRED_TO]->(dst:BankAccount {number: $account})
+         WHERE p.id IN $memberIds
+         RETURN p.id, p.name, sum(tx.amount) AS contributed
+         ORDER BY contributed DESC LIMIT 1`,
+        { account, memberIds: ringMemberIds }
+      );
+      const sender = topSenderResult.result?.[0];
+
+      if (sender) {
+        return {
+          leaderId: sender[0] || sender.id,
+          leaderName: `${sender[1] || sender.name} (funnel to ${account})`,
+          score,
+          method: 'money_hub_centrality',
+        };
+      }
+
+      return {
+        leaderId: account,
+        leaderName: `Money hub ${account}`,
+        score,
+        method: 'money_hub_centrality',
+      };
+    }
   }
 
   // Fallback: return first member

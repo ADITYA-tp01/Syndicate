@@ -26,6 +26,39 @@ async function getGraph() {
   return graph;
 }
 
+/**
+ * Normalize a FalkorDB Node client response into the shape the app expects:
+ *   { result: any[][], columns: string[], ms, cypher, params }
+ *
+ * The v6.x Node client returns { metadata, data } where `data` is an array of
+ * objects keyed by column name (e.g. [{ "p.id": "...", "p.name": "..." }]).
+ * Every route in this app indexes rows positionally (row[0], row[1]...), so we
+ * flatten each object back into an array in the order the columns were emitted.
+ */
+function normalizeResult(raw: any): { result: any[][]; columns: string[] } {
+  // Legacy shape: { result_set: any[][], columns: string[] }
+  if (raw.result_set && Array.isArray(raw.result_set)) {
+    return {
+      result: raw.result_set,
+      columns: raw.columns || [],
+    };
+  }
+
+  // Current shape: { metadata, data: Record<string, any>[] }
+  const data = raw.data;
+  if (Array.isArray(data)) {
+    if (data.length === 0) {
+      return { result: [], columns: [] };
+    }
+    // Column order = insertion order of keys on the first row
+    const columns = Object.keys(data[0]);
+    const result = data.map(row => columns.map(col => row[col]));
+    return { result, columns };
+  }
+
+  return { result: [], columns: [] };
+}
+
 export async function runQuery(cypher: string, params: Record<string, any> = {}) {
   // During build, return mock data without connecting
   if (IS_BUILD) {
@@ -37,16 +70,17 @@ export async function runQuery(cypher: string, params: Record<string, any> = {})
       params,
     };
   }
-  
+
   // Runtime - connect and query
   try {
     const g = await getGraph();
     const start = performance.now();
-    const result = await g.query(cypher, { params });
+    const raw = await g.query(cypher, { params });
     const ms = performance.now() - start;
+    const { result, columns } = normalizeResult(raw);
     return {
-      result: result.result_set || [],
-      columns: result.columns || [],
+      result,
+      columns,
       ms: Math.round(ms * 100) / 100,
       cypher,
       params,

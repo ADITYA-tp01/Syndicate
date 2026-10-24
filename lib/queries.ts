@@ -21,23 +21,25 @@ ORDER BY shared_device
 `;
 
 // ─── Q1b: Shared Entity Detection (single-entity, broader net) ───
-// Persons sharing a device (wider net, catches more potential links)
+// Devices used by 2+ persons, grouped: device → [person_ids], [person_names].
+// Grouped (not pairwise) so the UI draws a device→persons fan and can pair
+// ids with names index-wise.
 export const SHARED_DEVICE_DETECTION = `
-MATCH (a:Person)-[:USES_DEVICE]->(d:Device)<-[:USES_DEVICE]-(b:Person)
-WHERE id(a) < id(b)
-RETURN d.fingerprint AS device,
-       collect(DISTINCT a.name) + collect(DISTINCT b.name) AS linked_suspects
-ORDER BY size(linked_suspects) DESC
+MATCH (p:Person)-[:USES_DEVICE]->(d:Device)
+WITH d, collect(DISTINCT p.id) AS person_ids, collect(DISTINCT p.name) AS person_names
+WHERE size(person_ids) >= 2
+RETURN d.fingerprint AS device, person_ids, person_names
+ORDER BY size(person_ids) DESC
 LIMIT 20
 `;
 
 // ─── Q1c: Shared IP Detection ───
 export const SHARED_IP_DETECTION = `
-MATCH (a:Person)-[:LOGGED_FROM]->(ip:IP)<-[:LOGGED_FROM]-(b:Person)
-WHERE id(a) < id(b)
-RETURN ip.address AS ip,
-       collect(DISTINCT a.name) + collect(DISTINCT b.name) AS linked_suspects
-ORDER BY size(linked_suspects) DESC
+MATCH (p:Person)-[:LOGGED_FROM]->(ip:IP)
+WITH ip, collect(DISTINCT p.id) AS person_ids, collect(DISTINCT p.name) AS person_names
+WHERE size(person_ids) >= 2
+RETURN ip.address AS ip, person_ids, person_names
+ORDER BY size(person_ids) DESC
 LIMIT 20
 `;
 
@@ -67,17 +69,28 @@ LIMIT 200
 // ─── Q4: Ring Isolation — FALLBACK (Cypher subgraph extraction) ───
 // Pull suspicious subgraph (persons with degree >= 2 + their neighbors up to 3 hops)
 // Backend runs union-find clustering on the returned subgraph
+//
+// Three link types between persons:
+//   DEVICE  — share a burner device
+//   IP      — share a proxy/corporate IP
+//   MONEY   — connected via circular transfers (same account, or two
+//             different accounts linked by a TRANSFERRED_TO edge)
+//
+// NOTE: we dedupe with `id(a) < id(b)` on the FalkorDB node identity, NOT
+// on `a.id < b.id`. The person.id strings are not globally ordered (e.g.
+// "gamma_lt_00" > "gamma_kingpin_001" alphabetically), so string ordering
+// silently drops real links. Node identity is a stable unique key.
 export const RING_ISOLATE_FALLBACK = `
 MATCH (a:Person)-[:USES_DEVICE]->(d:Device)<-[:USES_DEVICE]-(b:Person)
-WHERE a.id < b.id
+WHERE id(a) < id(b)
 RETURN a.id AS src, b.id AS dst, 'DEVICE' AS via
 UNION
 MATCH (a:Person)-[:LOGGED_FROM]->(ip:IP)<-[:LOGGED_FROM]-(b:Person)
-WHERE a.id < b.id
+WHERE id(a) < id(b)
 RETURN a.id AS src, b.id AS dst, 'IP' AS via
 UNION
 MATCH (a:Person)-[:OWNS]->(srcAcc:BankAccount)-[:TRANSFERRED_TO]->(dstAcc:BankAccount)<-[:OWNS]-(b:Person)
-WHERE a.id < b.id
+WHERE id(a) <> id(b)
 RETURN a.id AS src, b.id AS dst, 'MONEY' AS via
 `;
 
@@ -170,25 +183,29 @@ RETURN persons, devices, ips, accounts, edges
 `;
 
 // ─── Q10: Search Entities (for investigate page search) ───
+// FalkorDB's UNION requires every subquery to use identical column names, so
+// alias every column to the same three names (id, name, extra) regardless of
+// entity type. The app reads them positionally: row[0]=id, row[1]=name,
+// row[2]=email/geo/os/type, row[3]=entity type label.
 export const SEARCH_ENTITIES = `
 MATCH (p:Person)
 WHERE p.id CONTAINS $query OR p.name CONTAINS $query OR p.email CONTAINS $query
-RETURN p.id, p.name, p.email, 'Person' AS type
+RETURN p.id AS id, p.name AS name, p.email AS extra, 'Person' AS type
 LIMIT 10
 UNION
 MATCH (d:Device)
 WHERE d.fingerprint CONTAINS $query
-RETURN d.fingerprint AS id, d.fingerprint AS name, d.os AS email, 'Device' AS type
+RETURN d.fingerprint AS id, d.fingerprint AS name, d.os AS extra, 'Device' AS type
 LIMIT 10
 UNION
 MATCH (ip:IP)
 WHERE ip.address CONTAINS $query
-RETURN ip.address AS id, ip.address AS name, ip.geo AS email, 'IP' AS type
+RETURN ip.address AS id, ip.address AS name, ip.geo AS extra, 'IP' AS type
 LIMIT 10
 UNION
 MATCH (a:BankAccount)
 WHERE a.number CONTAINS $query
-RETURN a.number AS id, a.number AS name, a.type AS email, 'BankAccount' AS type
+RETURN a.number AS id, a.number AS name, a.type AS extra, 'BankAccount' AS type
 LIMIT 10
 `;
 

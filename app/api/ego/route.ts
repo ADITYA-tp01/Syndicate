@@ -14,55 +14,61 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await runQuery(EGO_NETWORK, { person_id: personId });
-    
-    // Convert to Cytoscape format
+
+    // The FalkorDB Node client returns each row as:
+    //   { seed: {id, labels, properties}, r: {sourceId, destinationId, properties, relationshipType}, n: {id, labels, properties} }
     const nodes: any[] = [];
     const edges: any[] = [];
     const nodeSet = new Set<string>();
-    const nodeLabels = new Map<string, string>();
+
+    const addNode = (item: any) => {
+      if (!item || item.id === undefined) return;
+      const id = String(item.id);
+      if (nodeSet.has(id)) return;
+      nodeSet.add(id);
+
+      const labels = item.labels || [];
+      const props = item.properties || {};
+      const type = labels[0] || 'Unknown';
+      const label = props.name || props.number || props.fingerprint || props.address || id;
+
+      nodes.push({
+        data: { id, label, type },
+        classes: type.toLowerCase(),
+      });
+    };
 
     for (const row of result.result || []) {
-      // row contains: seed, r, n
       const seed = row[0];
       const rel = row[1];
       const neighbor = row[2];
 
-      if (seed && seed.identity !== undefined) {
-        const id = String(seed.identity);
-        if (!nodeSet.has(id)) {
-          nodeSet.add(id);
-          nodes.push({
-            data: { id, label: seed.properties?.name || id, type: 'Person' },
-            classes: 'person',
-          });
-        }
-      }
-      if (neighbor && neighbor.identity !== undefined) {
-        const id = String(neighbor.identity);
-        if (!nodeSet.has(id)) {
-          nodeSet.add(id);
-          const label = neighbor.properties?.name || 
-                       neighbor.properties?.fingerprint || 
-                       neighbor.properties?.number || 
-                       neighbor.properties?.address || id;
-          const type = neighbor.labels?.[0] || 'Unknown';
-          nodes.push({
-            data: { id, label, type },
-            classes: type.toLowerCase(),
-          });
-        }
-      }
-      if (rel && rel.start !== undefined && rel.end !== undefined) {
-        const srcId = String(rel.start);
-        const tgtId = String(rel.end);
+      addNode(seed);
+      addNode(neighbor);
+
+      if (rel && rel.sourceId !== undefined && rel.destinationId !== undefined) {
+        // The match is undirected — orient the edge away from the seed
+        const srcId = String(rel.sourceId === seed?.id ? rel.sourceId : rel.destinationId);
+        const tgtId = String(rel.sourceId === seed?.id ? rel.destinationId : rel.sourceId);
         edges.push({
-          data: { id: `e-${srcId}-${tgtId}`, source: srcId, target: tgtId, type: rel.type },
-          classes: rel.type.toLowerCase().replace('_', '-'),
+          data: {
+            id: `e-${srcId}-${tgtId}`,
+            source: srcId,
+            target: tgtId,
+            type: rel.relationshipType,
+          },
+          classes: rel.relationshipType?.toLowerCase().replace('_', '-') || '',
         });
       }
     }
 
-    return NextResponse.json({ nodes, edges });
+    return NextResponse.json({
+      nodes,
+      edges,
+      ms: result.ms,
+      cypher: result.cypher,
+      params: result.params,
+    });
   } catch (error) {
     console.error('Ego network error:', error);
     return NextResponse.json({ error: 'Query failed' }, { status: 500 });
