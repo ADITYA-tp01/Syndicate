@@ -317,19 +317,24 @@ Errors hit and fixed during live testing:
 | Day 3 | ✅ Complete, SWC binary fixed | Browser E2E of the trace flow not yet run |
 | Day 4 | ✅ Complete, verified live | Browser E2E not yet run (dev server at `http://localhost:3001`) |
 | Day 5 | ✅ Complete, verified live | Local inference ~100–120 s per brief; OPENAI_API_KEY not required (Ollama handles it) |
-| Day 6 | ⏳ In progress — polish + demo prep | README still needs: setup instructions, GraphRAG explanation, AI disclosure |
-| Day 7 | ⏳ Pending | — |
+| Day 6 | ✅ Complete, verified live | Docker fresh-clone test passed; README, setup, GraphRAG explanation all current |
+| Day 7 | ⏳ Ready to start | — |
 
-**Next Action: DAY 6 — Polish + Demo Prep.**
-Day 5 is done and committed (`04202cd`). The GraphRAG pipeline works end-to-end:
-- Ollama-local generation (no API key needed) for all 3 rings
-- Clickable Data Sources section citing exact Cypher from `lib/queries.ts`
-- Generating spinner + error fallback + retry on the Brief tab
-- Case pages `/case/ring_gamma`, `/case/ring_alpha`, `/case/ring_beta` all render cleanly
+**Next Action: DAY 7 — FREEZE + SUBMIT.**
+All Days 0–6 complete and pushed to GitHub:
+- Day 4: `30e3c13`
+- Day 5: `580fd91`
+- Day 6: `b614c33` + docs `ff08ae7`
 
-Day 6 work:
-1. ✅ **Confirm dark theme + animations are polished** (ringleader pulse is cytoscape-native)
-2. ✅ **Stats bar on Overview** — live query latency shows in SQL-vs-Graph card
-3. ⬜ **Record demo 5+ times** — pre-generate the brief for Ring Gamma (Victor Krane) before recording to avoid the 2-minute wait on camera
-4. ⬜ **README**: ensure setup instructions cover the Ollama dependency, the data model diagram is current, Cypher hero queries are verbatim, GraphRAG pipeline explanation matches what we actually built, track name is "Investigation and Risk", and AI disclosure is added
-5. ⬜ **Docker fresh-clone test** (pushed to GitHub after Day 6 commit, tested Day 7)
+Day 7 work:
+1. **NO NEW FEATURES.** Freeze codebase.
+2. **Final video (3 min)** — record through the demo flow:
+   - Home: show live stats (2,289 persons)
+   - Investigate → Isolate Rings → click GAMMA → Find Ringleader (Victor Krane pulses)
+   - Generate Brief → show structured output with Data Sources
+   - Switch to `/case/ring_gamma` → show member table, shared devices/IPs, money flow
+3. **README polish** — already complete in Day 6
+4. **Docker fresh-clone test** — PASSED in Day 6
+5. **Submit** with track name: *Investigation and Risk*
+
+Dev server at `http://localhost:3001`, Docker compose path at `http://localhost:3000`.
