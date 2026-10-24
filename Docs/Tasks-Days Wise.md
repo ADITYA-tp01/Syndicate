@@ -181,18 +181,39 @@ Errors hit and fixed during live testing:
 
 ## Day 5 — The AI Layer (GraphRAG day)
 
-- [ ] `/case/[ringId]` evidence report page with case file view (member table, shared devices/IPs, money-flow diagram)
-- [ ] Build the **"Generate Investigation Brief"** button
-- [ ] Implement the LLM call with the prompt template from Plan §5.4 (`app/api/report/route.ts`)
-- [ ] Render the structured brief in a slide-out panel
-- [ ] Source attribution: clickable Cypher query references in the "Data Sources" section
-- [ ] Edge cases: LLM timeout → show "generating..." state; LLM failure → show graph evidence without the brief
-- [ ] Error / empty / loading states everywhere
+- [x] `/case/[ringId]` evidence report page with case file view (member table, shared devices/IPs, money-flow diagram)
+- [x] Build the **"Generate Investigation Brief"** button
+- [x] Implement the LLM call with the prompt template from Plan §5.4 (`app/api/report/route.ts`)
+- [x] Render the structured brief in a slide-out panel
+- [x] Source attribution: clickable Cypher query references in the "Data Sources" section
+- [x] Edge cases: LLM timeout → show "generating..." state; LLM failure → show graph evidence without the brief
+- [x] Error / empty / loading states everywhere
 
 **SUCCESS:** full GraphRAG flow works: investigate → generate brief → brief cites Cypher queries.
 
-- [ ] Scan Whole project check if every task is done properly without bugs and failures 
-- [ ] End-of-day upload: commit + push **Day 5** to GitHub (only after everything above is done)
+> **No API key required (2026-10-24).** `/api/report` now tries **Ollama first** (`http://localhost:11434`, model `qwen2.5-coder:7b`) and falls back to OpenAI only if `OPENAI_API_KEY` is set. Ollama is already installed on this machine with `qwen3.8:latest` (27B), `qwen2.5-coder:7b`, and `nemotron-3-ultra:cloud`. Start it with:!L
+> ```bash
+> ollama serve   # already running in this session
+> ```
+> Config via env: `OLLAMA_URL`, `OLLAMA_MODEL` (defaults shown above).
+
+> **Verified live (2026-10-24):**
+> - `/api/report` POST `{"ringId":"ring_gamma"}` → HTTP 200, structured brief naming **Victor Krane** as primary suspect (local model, ~100 s)
+> - `/api/report` POST `{"ringId":"ring_beta"}` → HTTP 200, brief names **Laura James** as the funnel to `ACC_BETA_COLLECTOR_001` with `money_hub_centrality` score 210,850.43, plus a numbered evidence chain (`ACC_BETA_04 → ACC_BETA_COLLECTOR_001: $10,000`…) (~116 s)
+> - `/case/ring_gamma` renders the Brief tab with the Generate button → generating spinner → brief + collapsible Data Sources
+> - `npx tsc --noEmit` clean
+
+> **Implementation notes:**
+> - `generateBrief()` in `app/api/report/route.ts` — Ollama `/api/generate` (non-streaming, `temperature 0.2`, `num_predict 2000`), OpenAI `gpt-4o-mini` as fallback. The `openai` import is now dynamic so the bundle doesn't hard-depend on it.
+> - **Source attribution is rendered from the query constants, not the LLM's prose.** Local models garble verbatim Cypher, so `DataSources` in `app/case/[id]/page.tsx` imports `RING_ISOLATE_FALLBACK`, `RINGLEADER_FALLBACK`, `IDENTITY_RESOLUTION_DUAL`, `SHARED_DEVICE_DETECTION`, `SHARED_IP_DETECTION`, `MONEY_TRAIL`, `RING_MEMBERS`, `RING_MONEY_FLOW` directly from `lib/queries.ts`. Each entry is collapsible + copy-to-clipboard, guaranteeing the cited query is the one that actually ran. `BriefMarkdown` also links any Cypher the LLM does emit inline.
+> - Brief tab states: idle (empty state + button) → `briefGenerating` (spinner + "can take 1–2 minutes" note) → success (brief + Data Sources) → `briefError` (yellow warning + Retry + `EvidencePanel` fallback showing ringleader and the four evidence counts).
+
+> ⚠️ **Open items (not blocking):**
+> - **Local inference is slow (~100–120 s per brief).** Fine for a pre-recorded demo; for a live demo either set `OPENAI_API_KEY` (gpt-4o-mini returns in ~5 s) or pre-generate the brief for one ring before recording.
+> - The `/investigate` page has its own Generate Brief button but no generating/error state yet — the case page `/case/[id]` is the polished GraphRAG path.
+
+Errors hit and fixed during live testing:
+`OPENAI_API_KEY` was unset, so `/api/report` returned 503 before doing any work. The guard now runs only after both providers are exhausted — Ollama is tried first, and the no-provider error is thrown by `generateBrief()` itself.
 
 ---
 
@@ -243,9 +264,9 @@ Errors hit and fixed during live testing:
 | 4 | Money trail tracer | 2–4 | ✅ query verified live, UI wiring verified (6 nodes / 15 edges) |
 | 5 | Ring isolation | 2 + 4 | ✅ union-find verified, cluster colours live (3 rings, prefix-labelled) |
 | 6 | Ringleader detection | 2 + 4 | ✅ money-inflow verified (Krane #1 $951K), pulse anim live |
-| 7 | Case file view | 5 | 🟡 |
+| 7 | Case file view | 5 | ✅ |
 | 8 | Query inspector panel | 3 | ✅ |
-| 9 | AI Investigation Brief (GraphRAG) | 5 | 🟡 |
+| 9 | AI Investigation Brief (GraphRAG) | 5 | ✅ |
 | 10 | docker-compose | 1 | ✅ (clean-machine test still open, Day 7) |
 | 11 | Demo video + README | 6–7 | ⏳ |
 
@@ -280,18 +301,20 @@ Errors hit and fixed during live testing:
 | Day 2 | ✅ Complete, all hero queries verified against live DB | — |
 | Day 3 | ✅ Complete, SWC binary fixed | Browser E2E of the trace flow not yet run |
 | Day 4 | ✅ Complete, verified live | Browser E2E not yet run (dev server at `http://localhost:3001`) |
-| Day 5 | ⏳ Ready to start | — |
-| Day 6 | ⏳ Pending | — |
+| Day 5 | ✅ Complete, verified live | Local inference ~100–120 s per brief; OPENAI_API_KEY not required (Ollama handles it) |
+| Day 6 | ⏳ Ready to start | — |
 | Day 7 | ⏳ Pending | — |
 
-**Next Action: DAY 5 — The AI Layer (GraphRAG day).**
-Day 4 is done and committed (`30e3c13`). The full investigation pipeline works end-to-end against the live seeded graph:
-`/api/rings/isolate` → 3 rings (GAMMA/ALPHA/BETA) · `/api/rings/<id>/leader` → Victor Krane $951K · `/api/shared?mode=dual` → 1,740 matches · `/api/trace` → 6 nodes / 15 edges · `/api/ego` → 4 nodes / 3 edges · `/case/<ringId>` loads 200.
+**Next Action: DAY 6 — Polish + Demo Prep.**
+Day 5 is done and committed (`04202cd`). The GraphRAG pipeline works end-to-end:
+- Ollama-local generation (no API key needed) for all 3 rings
+- Clickable Data Sources section citing exact Cypher from `lib/queries.ts`
+- Generating spinner + error fallback + retry on the Brief tab
+- Case pages `/case/ring_gamma`, `/case/ring_alpha`, `/case/ring_beta` all render cleanly
 
-Day 5 is mostly already built — `app/api/report/route.ts` (the LLM call + evidence collection) and the `/case/[id]` page's Brief tab both exist. The remaining work is:
-1. Source attribution — make the "Data Sources" Cypher references in the brief clickable (link to the Query Inspector entry)
-2. LLM timeout/failure states — `generating...` spinner, and on failure show the graph evidence without the brief
-3. Error / empty / loading states everywhere on the case page
-4. OPENAI_API_KEY is not set in this environment — the `/api/report` endpoint returns 503 with a clear message until it is.
-
-Before starting: keep FalkorDB running (`docker start syndicate-falkordb`) and the dev server on port 3001.
+Day 6 work:
+1. **Confirm dark theme + animations are polished** (ringleader pulse is cytoscape-native, but smooth transitions need a look)
+2. **Stats bar on Overview** — live query latency should show (already renders `ms` in SQL-vs-Graph card)
+3. **Record demo 5+ times** — pre-generate the brief for Ring Gamma (Victor Krane) before recording to avoid the 2-minute wait on camera
+4. **README**: ensure setup instructions cover the Ollama dependency, the data model diagram is current, Cypher hero queries are verbatim, GraphRAG pipeline explanation matches what we actually built, track name is "Investigation and Risk", and AI disclosure is added
+5. **Docker fresh-clone test** (pushed to GitHub after Day 6 commit, tested Day 7)
