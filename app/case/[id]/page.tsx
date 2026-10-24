@@ -6,6 +6,16 @@ import { ArrowLeft, Shield, Zap, Brain, GitBranch, Copy, AlertTriangle } from 'l
 import Link from 'next/link';
 import GraphCanvas from '@/app/components/GraphCanvas';
 import QueryInspector from '@/app/components/QueryInspector';
+import {
+  RING_ISOLATE_FALLBACK,
+  RINGLEADER_FALLBACK,
+  IDENTITY_RESOLUTION_DUAL,
+  SHARED_DEVICE_DETECTION,
+  SHARED_IP_DETECTION,
+  MONEY_TRAIL,
+  RING_MEMBERS,
+  RING_MONEY_FLOW,
+} from '@/lib/queries';
 
 interface Ring {
   id: string;
@@ -55,6 +65,8 @@ export default function CasePage() {
   const [graphData, setGraphData] = useState<{ nodes: any[]; edges: any[] }>({ nodes: [], edges: [] });
   const [queryHistory, setQueryHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [briefGenerating, setBriefGenerating] = useState(false);
+  const [briefError, setBriefError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'graph' | 'brief'>('overview');
 
   const addQueryToHistory = (result: any) => {
@@ -131,6 +143,9 @@ export default function CasePage() {
 
   const handleGenerateBrief = async () => {
     if (!ring) return;
+    setBriefGenerating(true);
+    setBriefError(null);
+    setActiveTab('brief');
     try {
       const res = await fetch('/api/report', {
         method: 'POST',
@@ -138,12 +153,15 @@ export default function CasePage() {
         body: JSON.stringify({ ringId: ring.id }),
       });
       const data = await res.json();
-      if (data.brief) {
+      if (res.ok && data.brief) {
         setBrief(data);
-        setActiveTab('brief');
+      } else {
+        setBriefError(data.details || data.message || data.error || `Generation failed (HTTP ${res.status})`);
       }
     } catch (e) {
-      console.error(e);
+      setBriefError(e instanceof Error ? e.message : 'Network error — is the dev server running?');
+    } finally {
+      setBriefGenerating(false);
     }
   };
 
@@ -388,7 +406,32 @@ export default function CasePage() {
 
         {activeTab === 'brief' && (
           <div className="prose prose-invert max-w-none">
-            {brief ? (
+            {briefGenerating ? (
+              <div className="text-center py-16">
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Generating Investigation Brief…</h3>
+                <p className="text-gray-500 text-sm max-w-md mx-auto">
+                  The LLM is narrating the graph evidence. This runs against a local model and can take 1–2 minutes.
+                </p>
+              </div>
+            ) : briefError ? (
+              <div className="space-y-6">
+                <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-yellow-400 font-semibold mb-1">
+                    <AlertTriangle className="w-5 h-5" />
+                    LLM Brief Unavailable — showing raw graph evidence below instead
+                  </div>
+                  <p className="text-xs text-yellow-200/70 font-mono">{briefError}</p>
+                  <button
+                    onClick={handleGenerateBrief}
+                    className="mt-3 px-3 py-1.5 bg-yellow-700/40 hover:bg-yellow-700/60 border border-yellow-600/50 rounded text-xs"
+                  >
+                    Retry
+                  </button>
+                </div>
+                <EvidencePanel members={members} moneyFlow={moneyFlow} sharedDevices={sharedDevices} sharedIPs={sharedIPs} leader={leader} />
+              </div>
+            ) : brief ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold">AI Investigation Brief</h2>
@@ -401,14 +444,18 @@ export default function CasePage() {
                   </div>
                 </div>
                 <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 whitespace-pre-wrap text-sm">
-                  {brief.brief}
+                  <BriefMarkdown text={brief.brief} />
                 </div>
+                <DataSources />
               </div>
             ) : (
               <div className="text-center py-12">
                 <Brain className="w-16 h-16 mx-auto mb-4 text-gray-600" />
                 <h3 className="text-lg font-semibold mb-2">No Brief Generated</h3>
-                <p className="text-gray-500 mb-4">Click "Generate Brief" to create an AI Investigation Brief for this ring.</p>
+                <p className="text-gray-500 mb-4">
+                  Click "Generate Brief" to create an AI Investigation Brief for this ring.
+                  The brief narrates the graph evidence and cites the exact Cypher queries used.
+                </p>
                 <button
                   onClick={handleGenerateBrief}
                   className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 flex items-center gap-2 mx-auto"
@@ -428,12 +475,122 @@ export default function CasePage() {
   );
 }
 
+// ─── Canonical Data Sources (source attribution for the GraphRAG brief) ───
+// Rendered from the actual query constants rather than the LLM's prose, so
+// the cited Cypher is guaranteed to be the query that really ran.
+const DATA_SOURCES: { name: string; cypher: string }[] = [
+  { name: 'Ring Isolation (subgraph extract + Union-Find)', cypher: RING_ISOLATE_FALLBACK },
+  { name: 'Ringleader Detection (money-inflow centrality)', cypher: RINGLEADER_FALLBACK },
+  { name: 'Identity Resolution (Dual Entity)', cypher: IDENTITY_RESOLUTION_DUAL },
+  { name: 'Shared Device Detection', cypher: SHARED_DEVICE_DETECTION },
+  { name: 'Shared IP Detection', cypher: SHARED_IP_DETECTION },
+  { name: 'Money Trail (5-hop)', cypher: MONEY_TRAIL },
+  { name: 'Ring Members', cypher: RING_MEMBERS },
+  { name: 'Ring Money Flow', cypher: RING_MONEY_FLOW },
+];
+
+function DataSources() {
+  return (
+    <div className="not-prose">
+      <h3 className="text-base font-semibold text-white mb-2">
+        Data Sources — every claim traces to one of these queries
+      </h3>
+      <div className="space-y-1">
+        {DATA_SOURCES.map((src, i) => (
+          <DataSourceItem key={i} name={src.name} cypher={src.cypher.trim()} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SummaryCard({ icon: Icon, label, value }: { icon: any; label: string; value: number | string }) {
   return (
     <div className="bg-gray-900 border border-gray-700 rounded-lg p-4">
       <Icon className="w-6 h-6 text-primary mb-2" />
       <div className="text-3xl font-bold font-mono text-white">{value}</div>
       <div className="text-xs text-gray-500 mt-1">{label}</div>
+    </div>
+  );
+}
+
+// ─── Brief renderer with clickable Data Sources (Day 5 source attribution) ───
+// Lines under "Data Sources" that contain Cypher get clicked into a copyable
+// detail panel — the point of the hackathon deliverable: every claim in the
+// brief traces back to the exact query that produced it.
+function BriefMarkdown({ text }: { text: string }) {
+  const lines = text.split('\n');
+  return (
+    <div className="space-y-1">
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('## ')) {
+          return <h2 key={i} className="text-lg font-bold text-white pt-2">{trimmed.slice(3)}</h2>;
+        }
+        if (trimmed.startsWith('### ')) {
+          return <h3 key={i} className="text-base font-semibold text-primary pt-3 pb-1">{trimmed.slice(4)}</h3>;
+        }
+        // Data-source entries with a Cypher clause → clickable
+        const cypherMatch = trimmed.match(/^\d+\.\s*(.+?):\s*((MATCH|CALL).+)$/);
+        if (cypherMatch) {
+          return <DataSourceItem key={i} name={cypherMatch[1]} cypher={cypherMatch[2]} />;
+        }
+        if (trimmed === '') return <div key={i} className="h-2" />;
+        return <p key={i} className="text-gray-300 leading-relaxed">{line}</p>;
+      })}
+    </div>
+  );
+}
+
+function DataSourceItem({ name, cypher }: { name: string; cypher: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="my-1">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="text-left text-blue-400 hover:text-blue-300 hover:underline text-sm"
+        title="Click to view the Cypher query"
+      >
+        {name} <span className="text-gray-500 text-xs font-mono">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div className="mt-1 bg-black/50 border border-gray-700 rounded p-2">
+          <pre className="text-xs text-gray-300 font-mono whitespace-pre-wrap">{cypher}</pre>
+          <button
+            onClick={() => navigator.clipboard.writeText(cypher)}
+            className="mt-2 px-2 py-0.5 text-[10px] bg-gray-800 hover:bg-gray-700 rounded text-gray-300 flex items-center gap-1"
+          >
+            <Copy className="w-3 h-3" /> Copy Cypher
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Evidence fallback panel (shown when the LLM brief fails) ───
+function EvidencePanel({ members, moneyFlow, sharedDevices, sharedIPs, leader }: {
+  members: any[];
+  moneyFlow: any[];
+  sharedDevices: any[];
+  sharedIPs: any[];
+  leader: Leader | null;
+}) {
+  return (
+    <div className="space-y-4 not-prose">
+      {leader && (
+        <div className="bg-gray-900 border border-green-700/50 rounded-lg p-4">
+          <div className="text-green-400 text-xs font-semibold uppercase tracking-wider mb-1">Ringleader</div>
+          <div className="font-mono text-lg">{leader.leaderName}</div>
+          <div className="text-xs text-gray-500">{leader.method} • score: {leader.score.toLocaleString()}</div>
+        </div>
+      )}
+      <div className="grid grid-cols-4 gap-4">
+        <SummaryCard icon={GitBranch} label="Members" value={members.length} />
+        <SummaryCard icon={Zap} label="Money flows" value={moneyFlow.length} />
+        <SummaryCard icon={Shield} label="Shared devices" value={sharedDevices.length} />
+        <SummaryCard icon={AlertTriangle} label="Shared IPs" value={sharedIPs.length} />
+      </div>
     </div>
   );
 }

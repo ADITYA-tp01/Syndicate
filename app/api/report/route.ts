@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { runQuery } from '@/lib/falkordb';
-import { 
-  IDENTITY_RESOLUTION_DUAL, 
-  SHARED_DEVICE_DETECTION, 
+import {
+  IDENTITY_RESOLUTION_DUAL,
+  SHARED_DEVICE_DETECTION,
   SHARED_IP_DETECTION,
   RING_MEMBERS,
   RING_MONEY_FLOW,
@@ -10,22 +10,52 @@ import {
   RING_SHARED_IPS,
 } from '@/lib/queries';
 import { isolateRings, detectRingleader } from '@/lib/graph-algos';
-import OpenAI from 'openai';
 
 export const dynamic = 'force-dynamic';
 
-let openai: OpenAI | null = null;
+// ─── LLM Provider (Ollama preferred, OpenAI fallback) ───
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5-coder:7b';
 
-function getOpenAI() {
-  if (!openai) {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY not configured');
-    }
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
+async function generateBrief(prompt: string): Promise<string> {
+  // Try Ollama first (local, no key needed)
+  try {
+    const res = await fetch(`${OLLAMA_URL}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        prompt,
+        stream: false,
+        options: { temperature: 0.2, num_predict: 2000 },
+      }),
     });
+
+    if (res.ok) {
+      const data = await res.json();
+      return data.response || 'Failed to generate brief';
+    }
+  } catch {
+    // Fall through to OpenAI
   }
-  return openai;
+
+  // OpenAI fallback (if key configured)
+  if (process.env.OPENAI_API_KEY) {
+    const { OpenAI } = await import('openai');
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const completion = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You are a financial crime analyst. Write structured investigation briefs with precise source attribution.' },
+        { role: 'user', content: prompt },
+      ],
+      temperature: 0.2,
+      max_tokens: 2000,
+    });
+    return completion.choices[0]?.message?.content || 'Failed to generate brief';
+  }
+
+  throw new Error('No LLM provider configured — set OLLAMA_URL or OPENAI_API_KEY');
 }
 
 interface GraphEvidence {
@@ -188,32 +218,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'ringId required' }, { status: 400 });
     }
 
-    if (!process.env.OPENAI_API_KEY) {
-      return NextResponse.json({ 
-        error: 'LLM not configured', 
-        message: 'Set OPENAI_API_KEY to enable AI Investigation Brief' 
-      }, { status: 503 });
-    }
-
     // Collect graph evidence
     const evidence = await collectGraphEvidence(ringId);
 
     // Build prompt
     const prompt = buildPrompt(evidence);
 
-    // Call LLM
-    const client = getOpenAI();
-    const completion = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: 'You are a financial crime analyst. Write structured investigation briefs with precise source attribution.' },
-        { role: 'user', content: prompt },
-      ],
-      temperature: 0.2,
-      max_tokens: 2000,
-    });
-
-    const brief = completion.choices[0]?.message?.content || 'Failed to generate brief';
+    // Call LLM (Ollama preferred, OpenAI fallback)
+    const brief = await generateBrief(prompt);
 
     return NextResponse.json({
       ringId,
